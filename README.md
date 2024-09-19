@@ -26,15 +26,16 @@ By automating this code conversion process, the project seeks to streamline the 
 
 ## Prerequisites
 
+- AWS account with appropriate permissions to access S3 and Amazon Bedrock
+
 Following are the packages to be installed before starting the streamlit app:
 - Python 3.9 and above
 - boto3
 - streamlit
 - watchtower
 
-## AWS account with appropriate permissions to access S3 and Amazon Bedrock
+# Installation
 
-Installation
 Clone the repository:
 
     git clone https://github.com/your-repo/code-converter.git
