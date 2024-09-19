@@ -1,0 +1,33 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": [
+                "s3:PutObject",
+                "s3:GetObject",
+                "logs:CreateLogStream",
+                "bedrock:InvokeModel",
+                "s3:ListBucket",
+                "logs:CreateLogGroup",
+                "logs:PutLogEvents"
+            ],
+            "Resource": [
+                "arn:aws:s3:::<YOUR_SOURCE_BUCKET>",
+                "arn:aws:s3:::<YOUR_SOURCE_BUCKET>/*",
+                "arn:aws:s3:::<YOUR_TARGET_BUCKET>",
+				"arn:aws:s3:::YOUR_TARGET_BUCKET/*",
+                "arn:aws:bedrock:<YOUR_REGION>::foundation-model/<MODEL_ID>",
+                "arn:aws:logs:us-east-1:803822818546:log-group:<YOUR_LOG_GROUP>:*",
+                "arn:aws:logs:us-east-1:803822818546:log-group:/<YOUR_LOG_GROUP>/"
+            ]
+        },
+        {
+            "Sid": "VisualEditor1",
+            "Effect": "Allow",
+            "Action": "s3:ListAllMyBuckets",
+            "Resource": "*"
+        }
+    ]
+}
