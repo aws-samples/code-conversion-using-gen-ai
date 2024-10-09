@@ -82,4 +82,4 @@ The source code in this repository doesnt provision any AWS services. Customer m
 
 # Acknowledgments
 - Streamlit for the awesome Python library for building data apps.
-- Amazon Bedrock for providing the generative AI model used in this application.
+- Amazon Bedrock for providing the generative AI model used in this application.   
