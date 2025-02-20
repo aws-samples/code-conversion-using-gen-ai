@@ -13,7 +13,7 @@ The sample code takes the following inputs:
 By automating this code conversion process, the project seeks to streamline the task and make it more efficient for the customer.
 
 
-- For developers this repo shows how quickly you can build a frontend with Streamlit and point that to Amazon Bedrock to leverage available large language models such as Anthropic Claude 3 Sonnet for achieving a repo level code conversion.
+- For developers this repo shows how quickly you can build a frontend with Streamlit and point that to Amazon Bedrock to leverage available large language models such as Amazon Nova Pro or Anthropic Claude 3.5 Sonnet V2 for achieving a repo level code conversion.
 
 ## Features
 - Convert source code files from one programming language to another
@@ -38,16 +38,16 @@ Following are the packages to be installed before starting the streamlit app:
 
 Clone the repository:
 
-    git clone https://github.com/your-repo/code-converter.git
+    git clone https://github.com/aws-samples/code-conversion-using-gen-ai.git
 
 
 ## Set up the required AWS credentials and configuration.
 Refer the IAM policy to create an user based on the provided sample IAM policy
 
 ## Usage
-Run the Streamlit application using the command below
+Run the Streamlit application using the command below (alternatively you can also use app_claude_sonnet_35_v2.py below)
 
-    streamlit run app.py
+    streamlit run app_nova_pro.py
 
 1. In the Streamlit UI, select the source and target S3 buckets.
 

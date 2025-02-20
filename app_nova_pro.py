@@ -20,12 +20,17 @@
 import os
 import logging
 from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import streamlit as st
 import boto3
 import json
 import watchtower  # Added for CloudWatch logging
 from botocore.exceptions import ClientError
 from streamlit.components.v1 import html
+import time
+import random
+from threading import Lock
+from streamlit.runtime.scriptrunner import add_script_run_ctx
 
 # Utility functions from your backend
 from utils import bedrock
@@ -166,6 +171,9 @@ def get_matching_files(bucket, prefix, extension):
 
 def convert_file(source_bucket, target_bucket, file_key, source_language, target_language):
     logging.info(f"Starting conversion for file: {file_key}")
+    
+    alert = st.info("Converting - "+file_key)
+    
     source_extension = language_extensions[source_language]
     target_extension = language_extensions[target_language]
 
@@ -182,38 +190,83 @@ def convert_file(source_bucket, target_bucket, file_key, source_language, target
         return False
 
     # Conversion logic
-    model_id = "anthropic.claude-3-sonnet-20240229-v1:0"  # Replace with your actual model ID
-    max_tokens = 1000  # Adjust as necessary
-    system = "You are a highly knowledgeable and efficient code conversion assistant. Your task is to accurately and contextually convert source code from one programming language to another, maintaining the structure, logic, and functionality of the original code. Ensure that the converted code adheres to best practices in the target language, optimizing for readability and performance."
 
-    user_message = {"role": "user", "content": f"<source_code> {source_code} </source_code> Convert the source code from {source_language} to {target_language}. Put the response in <target_code> </target_code>"}
+    model_id = "amazon.nova-pro-v1:0"
+    inf_params = {"max_new_tokens" : 1000} # Adjust as necessary\\\  
+    
+    system_list = [{"text" : "You are a highly knowledgeable and efficient code conversion assistant. Your task is to accurately and contextually convert source code from one programming language to another, maintaining the structure, logic, and functionality of the original code. Ensure that the converted code adheres to best practices in the target language, optimizing for readability and performance. Be concise. Do not add any extra explanation or ""```python"" before and after the converted code"}]
+
+
+    user_message = {
+        "role": "user", 
+        "content": [
+            {"text": f"<source_code> {source_code} </source_code> Convert the source code from {source_language} to {target_language}. Put the response in <target_code> </target_code>"}
+        ]
+    }
     messages = [user_message]
-    body = json.dumps({
-        "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": max_tokens,
-        "system": system,
-        "messages": messages
-    })
 
-    try:
-        response = bedrock_runtime.invoke_model(body=body, modelId=model_id)
-        result = json.loads(response['body'].read().decode('utf-8'))
+    request_body = {
+        "messages": messages,
+        "system": system_list,
+        "inferenceConfig": inf_params
+    }
 
-        target_code_with_blocks = result['content'][0]['text']
-        target_code = target_code_with_blocks.replace('<target_code>', '').replace('</target_code>', '')
+    # Initialize retry parameters
+    max_retries = 5
+    base_delay = 5  # Initial delay in seconds
+    max_delay = 60  # Maximum delay in seconds
+    attempt = 0
 
-        target_key = f"{os.path.splitext(file_key)[0]}{target_extension}"
-        s3_client.put_object(Bucket=target_bucket, Key=target_key, Body=target_code.encode('utf-8'))
-        logging.info(f"Converted {file_key} to {target_key}")
-        return True
-    except ClientError as e:
-        logging.error(f"Error converting file {file_key}: {e}")
-        st.error(f"Error converting file {file_key}: {e}")
-        return False
-    except Exception as e:
-        logging.error(f"Unexpected error during conversion of file {file_key}: {e}")
-        st.error(f"Unexpected error during conversion of file {file_key}: {e}")
-        return False
+    while attempt < max_retries:
+        try:
+            response = bedrock_runtime.invoke_model(
+                body=json.dumps(request_body), 
+                modelId=model_id
+            )
+            result = json.loads(response['body'].read().decode('utf-8'))
+            
+            target_code_with_blocks = result["output"]["message"]["content"][0]['text']
+            target_code = target_code_with_blocks.replace('<target_code>', '').replace('</target_code>', '')
+
+            target_key = f"{os.path.splitext(file_key)[0]}{target_extension}"
+            s3_client.put_object(Bucket=target_bucket, Key=target_key, Body=target_code.encode('utf-8'))
+            logging.info(f"Converted {file_key} to {target_key}")
+            alert.empty()
+            return True
+
+        except ClientError as e:
+            error_code = e.response.get('Error', {}).get('Code', '')
+            
+            if error_code == 'ThrottlingException':
+                attempt += 1
+                if attempt == max_retries:
+                    logging.error(f"Max retries reached for file {file_key}: {e}")
+                    st.error(f"Max retries reached for file {file_key}: {e}")
+                    return False
+                
+                # Calculate delay with exponential backoff
+                delay = min(max_delay, base_delay * (2 ** (attempt - 1)))
+                # Add jitter to prevent thundering herd
+                jitter = random.uniform(0, 0.1 * delay)
+                total_delay = delay + jitter
+                
+                logging.warning(f"Throttling occurred. Attempt {attempt} of {max_retries}. "
+                              f"Retrying in {total_delay:.2f} seconds...")
+                time.sleep(total_delay)
+                continue
+            else:
+                logging.error(f"Error converting file {file_key}: {e}")
+                st.error(f"Error converting file {file_key}: {e}")
+                return False
+
+        except Exception as e:
+            logging.error(f"Unexpected error during conversion of file {file_key}: {e}")
+            st.error(f"Unexpected error during conversion of file {file_key}: {e}")
+            alert.empty()
+            return False
+
+    alert.empty()
+    return False
 
 def convert_files(source_bucket, target_bucket, prefix, source_language, target_language, parallel=False, max_workers=4):
     source_extension = language_extensions[source_language]
@@ -229,6 +282,7 @@ def convert_files(source_bucket, target_bucket, prefix, source_language, target_
 
     progress_bar = st.progress(0)
     success = False
+    results = []
 
     if parallel:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -238,11 +292,10 @@ def convert_files(source_bucket, target_bucket, prefix, source_language, target_
             for i, result in enumerate(results):
                 progress_bar.progress((i + 1) / len(matching_files))
     else:
-        results = []
         for i, file_key in enumerate(matching_files):
             result = convert_file(source_bucket, target_bucket, file_key, source_language, target_language)
-            results.append(result)
             progress_bar.progress((i + 1) / len(matching_files))
+            results.append(result)
 
     success = any(results)
 
