@@ -17,10 +17,10 @@
                 "arn:aws:s3:::<YOUR_SOURCE_BUCKET>",
                 "arn:aws:s3:::<YOUR_SOURCE_BUCKET>/*",
                 "arn:aws:s3:::<YOUR_TARGET_BUCKET>",
-				"arn:aws:s3:::YOUR_TARGET_BUCKET/*",
+                "arn:aws:s3:::<YOUR_TARGET_BUCKET>/*",
                 "arn:aws:bedrock:<YOUR_REGION>::foundation-model/<MODEL_ID>",
-                "arn:aws:logs:us-east-1:<ACCOUNT-ID>:log-group:<YOUR_LOG_GROUP>:*",
-                "arn:aws:logs:us-east-1:<ACCOUND-ID>:log-group:/<YOUR_LOG_GROUP>/"
+                "arn:aws:logs:<YOUR_REGION>:<ACCOUNT-ID>:log-group:<YOUR_LOG_GROUP>:*",
+                "arn:aws:logs:<YOUR_REGION>:<ACCOUNT-ID>:log-group:<YOUR_LOG_GROUP>/"
             ]
         },
         {

@@ -1,5 +1,5 @@
-botocore
-boto3
+boto3>=1.34.0
+botocore>=1.34.0
 streamlit==1.38.0
-awscli
-watchtower
+awscli>=1.32.0
+watchtower>=3.0.0
